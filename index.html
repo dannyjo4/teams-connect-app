@@ -3,79 +3,218 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Training Contact Center</title>
+    <title>Netser Connect Center</title>
+    
+    <!-- Tailwind CSS para un diseño moderno y responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Microsoft Teams JS SDK -->
     <script src="https://res.cdn.office.net/teams-js/2.11.0/js/MicrosoftTeams.min.js"></script>
+    
+    <!-- Amazon Connect Streams API -->
     <script src="https://amazon-connect.github.io/amazon-connect-streams/amazon-connect-1.x.js"></script>
+    
     <style>
-        /* El Iframe de AWS ocupa todo el panel izquierdo. AWS dibuja aquí el teclado, transferencias y esperas. */
+        /* El Iframe de AWS ocupa todo el panel izquierdo sin bordes */
         #ccp-container iframe {
             width: 100%;
             height: 100%;
-            min-height: 500px;
+            min-height: 550px;
             border: none;
+        }
+        /* Ocultar barra de scroll en el panel CRM para que se vea más limpio */
+        #crm-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        #crm-panel::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
         }
     </style>
 </head>
-<body class="bg-gray-50 h-screen flex flex-col overflow-hidden">
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden font-sans">
 
-    <!-- Header Superior -->
-    <header class="bg-blue-900 text-white p-4 shadow-md flex justify-between items-center z-10">
-        <div class="flex items-center space-x-3">
-            <h1 class="text-xl font-bold">Connect Center | Teams</h1>
+    <!-- HEADER / BARRA SUPERIOR -->
+    <header class="bg-blue-900 text-white p-3 shadow-md flex justify-between items-center z-10">
+        <!-- Logo de Netser y Título -->
+        <div class="flex items-center space-x-3 ml-2">
+            <!-- Logo Netser en la barra superior (con un pequeño fondo blanco para resaltar) -->
+            <div class="bg-white rounded-full p-1 shadow-sm flex items-center justify-center h-10 w-10">
+                <img src="Netser_phone.png" alt="Netser Phone Logo" class="h-8 w-8 object-contain">
+            </div>
+            <h1 class="text-lg font-bold tracking-wide">Netser Connect Center <span class="font-normal text-blue-300">| Teams</span></h1>
         </div>
         
-        <div class="flex items-center space-x-6">
+        <!-- Controles de Agente y Perfil -->
+        <div class="flex items-center space-x-6 mr-2">
             
-            <!-- Selector de Estado Dinámico (Se llena con los estados de Amazon Connect) -->
-            <div class="flex items-center space-x-2">
+            <!-- Selector de Estado Dinámico (Se llena desde AWS) -->
+            <div class="flex items-center space-x-2 bg-blue-800 py-1 px-3 rounded-full border border-blue-700">
+                <!-- Semáforo de estado -->
                 <div id="statusIndicator" class="w-3 h-3 rounded-full bg-gray-400"></div>
-                <select id="agentStatusSelect" class="bg-blue-800 text-white text-sm border-none rounded p-1 outline-none cursor-pointer" disabled>
-                    <option value="">Cargando estados...</option>
+                <select id="agentStatusSelect" class="bg-transparent text-white text-sm font-semibold border-none outline-none cursor-pointer appearance-none pr-4" disabled>
+                    <option value="">Esperando login...</option>
                 </select>
             </div>
             
-            <!-- Perfil del Usuario y Foto -->
+            <!-- Perfil del Usuario de Teams -->
             <div class="flex items-center space-x-3 text-right border-l border-blue-700 pl-4">
-                <div>
-                    <p id="userName" class="font-semibold text-sm">Cargando...</p>
-                    <p id="userRole" class="text-xs text-blue-300">Agente</p>
+                <div class="hidden sm:block">
+                    <p id="userName" class="font-semibold text-sm leading-tight">Cargando...</p>
+                    <p id="userRole" class="text-xs text-blue-300">Agente Connect</p>
                 </div>
-                <!-- Foto de perfil extraída de Teams -->
-                <img id="userProfilePic" src="https://ui-avatars.com/api/?name=Agente&background=0D8ABC&color=fff" alt="Perfil" class="h-10 w-10 rounded-full border-2 border-white object-cover hidden">
-                <div id="userInitials" class="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center font-bold border-2 border-white">
+                <!-- Círculo con Iniciales -->
+                <div id="userInitials" class="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center font-bold border-2 border-blue-400 shadow-sm">
                     --
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Contenedor Principal (Split View) -->
+    <!-- CONTENEDOR PRINCIPAL (Pantalla Dividida / Split View) -->
     <div class="flex flex-1 overflow-hidden p-4 space-x-4">
         
-        <!-- Panel Izquierdo: Teléfono Completo de AWS -->
-        <div class="w-1/3 min-w-[320px] bg-white rounded-lg shadow-lg flex flex-col border border-gray-200 overflow-hidden">
-            <div class="p-2 bg-gray-800 text-white text-xs font-semibold text-center">Panel Telefónico AWS</div>
-            <!-- Aquí AWS inyectará el teclado, transferencias, selector de país y Quick Connects (Compañeros) -->
-            <div id="ccp-container" class="flex-1 w-full bg-gray-50"></div>
-        </div>
+        <!-- PANEL IZQUIERDO: Teléfono de AWS (Amazon Connect CCP) -->
+        <div class="w-1/3 min-w-[340px] max-w-[400px] bg-white rounded-xl shadow-lg flex flex-col border border-gray-200 overflow-hidden relative">
+            
+            <!-- PANTALLA INTERACTIVA DE LOGIN (Cubre el teléfono al inicio) -->
+            <div id="login-screen" class="absolute inset-0 bg-gradient-to-b from-blue-800 to-blue-900 flex flex-col items-center justify-center z-20 text-white p-8 text-center transition-opacity duration-500">
+                
+                <!-- Logo de Netser en grande para la bienvenida -->
+                <div class="bg-white p-4 rounded-full mb-6 shadow-xl w-28 h-28 flex items-center justify-center">
+                    <img src="Netser_phone.png" alt="Netser Phone" class="w-24 h-24 object-contain">
+                </div>
+                
+                <h2 class="text-2xl font-bold mb-2" id="welcome-name">Hola, Equipo</h2>
+                <p class="text-sm text-blue-200 mb-8 leading-relaxed">Para comenzar a recibir y realizar llamadas, inicia sesión con tus credenciales nativas de Amazon Connect.</p>
+                
+                <!-- Botón de Acción -->
+                <button id="btn-iniciar-login" class="bg-blue-500 hover:bg-blue-600 border border-blue-400 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:scale-105 w-full flex justify-center items-center">
+                    <span>Iniciar Sesión en AWS</span>
+                </button>
+                
+                <!-- Mensaje de espera de Popup -->
+                <p id="esperando-login-msg" class="text-xs text-yellow-300 mt-6 hidden bg-black bg-opacity-30 p-3 rounded-lg border border-yellow-500/50">
+                    <span class="animate-pulse flex items-center justify-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-yellow-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Revisa la ventana emergente e ingresa tu clave.
+                    </span>
+                </p>
+            </div>
 
-        <!-- Panel Derecho: Gestión de Casos y CRM -->
-        <div class="flex-1 bg-white rounded-lg shadow-lg flex flex-col border border-gray-200">
-            <div class="p-3 bg-gray-100 border-b flex justify-between items-center">
-                <span class="font-semibold text-gray-700">Gestión de Casos Activos</span>
+            <!-- El Teléfono Real (Se mostrará después del login) -->
+            <div class="bg-gray-50 border-b border-gray-200 p-2 flex justify-between items-center z-10">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Panel Softphone</span>
+                <span class="flex h-2 w-2 relative">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
             </div>
             
+            <!-- Contenedor del Iframe de AWS -->
+            <div id="ccp-container" class="flex-1 w-full bg-white z-10 opacity-0 transition-opacity duration-700"></div>
+        </div>
+
+        <!-- PANEL DERECHO: Gestión de Casos / CRM (Tu Aplicación) -->
+        <div class="flex-1 bg-white rounded-xl shadow-lg flex flex-col border border-gray-200 overflow-hidden">
+            
+            <!-- Encabezado del Panel CRM -->
+            <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="font-bold text-gray-800 text-lg flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    Gestión de Interacciones
+                </h2>
+                <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow transition duration-150 ease-in-out">
+                    + Nuevo Ticket Manual
+                </button>
+            </div>
+            
+            <!-- Área de Contenido del CRM -->
             <div class="p-6 flex-1 overflow-y-auto" id="crm-panel">
-                <div class="text-center text-gray-400 mt-20" id="crm-empty-state">
-                    <p class="text-lg">Esperando interacción...</p>
-                    <p class="text-sm">Cuando entre una llamada, los datos del cliente aparecerán aquí.</p>
+                
+                <!-- Estado Vacío (Antes de una llamada) -->
+                <div class="flex flex-col items-center justify-center h-full text-center text-gray-400" id="crm-empty-state">
+                    <svg class="w-20 h-20 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    <p class="text-xl font-medium text-gray-500">Esperando interacción...</p>
+                    <p class="text-sm mt-2 max-w-md">Cuando entre o realices una llamada, los datos del cliente y el panel de tipificación aparecerán automáticamente aquí.</p>
+                </div>
+                
+                <!-- Vista de Caso Activo (Se muestra por JS al entrar llamada) -->
+                <div id="active-case-view" class="hidden animate-fade-in-up">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wide mb-2 border border-red-200">Llamada en Curso</span>
+                            <h2 class="text-2xl font-bold text-gray-800">Registro de Atención</h2>
+                        </div>
+                        <span class="text-gray-500 text-sm font-mono" id="call-timer">00:00</span>
+                    </div>
+
+                    <!-- Datos del Cliente extraídos de Connect -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 shadow-sm">
+                            <p class="text-xs text-blue-500 font-bold uppercase mb-1">Teléfono del Cliente</p>
+                            <p class="text-xl font-semibold text-blue-900" id="client-phone">+-- --- --- ----</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm">
+                            <p class="text-xs text-green-600 font-bold uppercase mb-1">Línea (Cola) / País</p>
+                            <p class="text-xl font-semibold text-green-900" id="contact-queue">Cargando...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulario de Tipificación (Tu CRM) -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-4">
+                        <h3 class="font-semibold text-gray-700 border-b pb-2">Tipificación y Notas</h3>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Categoría del Caso</label>
+                                <select class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                    <option>Soporte Técnico</option>
+                                    <option>Capacitación / E-Training</option>
+                                    <option>Gestión de Accesos</option>
+                                    <option>Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Estado del Ticket</label>
+                                <select class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                    <option>Resuelto en 1ra llamada</option>
+                                    <option>Escalado a Nivel 2</option>
+                                    <option>Pendiente de Información</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Notas de la llamada</label>
+                            <textarea class="w-full border border-gray-300 p-3 rounded h-32 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none" placeholder="Registra los detalles de la atención aquí..."></textarea>
+                        </div>
+                        
+                        <div class="flex justify-end pt-2">
+                            <button class="bg-green-600 text-white font-bold py-2 px-6 rounded shadow hover:bg-green-700 transition flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Guardar Caso y Finalizar
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
     </div>
 
+    <!-- Cargar la lógica Javascript -->
     <script src="app.js"></script>
+    
+    <!-- Pequeña animación para la vista del CRM -->
+    <style>
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.4s ease-out forwards;
+        }
+    </style>
 </body>
 </html>
